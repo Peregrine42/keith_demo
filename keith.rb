@@ -5,23 +5,26 @@ class Keith
     @pipe  = pipe
   end
 
-  def walk results=nil
-    results << @state.name if results
+  def walk
     pipe_response = @pipe.puts @state.name if @pipe
+    result = @state.result(result, pipe_response) if @state.respond_to? :result
     if @state.next
-      continue_walking pipe_response, results
+      decide_next_state pipe_response
+    else
+      result
     end
-    results
   end
 
   private
-  def continue_walking pipe_response, results
+  def decide_next_state pipe_response
     if @state.next.respond_to? :[]
-      new_state = @state.next[pipe_response]
+      new_state = @state.next.map do |key, value|
+        key.match(pipe_response) ? value : nil
+      end.reject { |item| item.nil? }.first
     else
       new_state = @state.next
     end
-    return Keith.new(new_state, @pipe).walk(results)
+    return Keith.new(new_state, @pipe).walk
   end
 
 end
