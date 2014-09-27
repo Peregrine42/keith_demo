@@ -1,30 +1,25 @@
 class Keith
 
-  def initialize state, pipe=nil
-    @state = state
+  attr_accessor :state
+
+  def initialize pipe, command=:puts_and_wait_for_prompt
     @pipe  = pipe
+    @default_command = command
   end
 
-  def walk
-    pipe_response = @pipe.puts @state.name if @pipe
-    result = @state.result(result, pipe_response) if @state.respond_to? :result
-    if @state.next
-      decide_next_state pipe_response
-    else
-      result
-    end
-  end
+  def walk result = :no_result, pipe_response = :no_response
+    command = @default_command
+    command = @state.command if @state.respond_to? :command
 
-  private
-  def decide_next_state pipe_response
-    if @state.next.respond_to? :[]
-      new_state = @state.next.map do |key, value|
-        key.match(pipe_response) ? value : nil
-      end.reject { |item| item.nil? }.first
+    pipe_response = @pipe.send command, @state.message if @state.respond_to? :message
+
+    current_result = @state.result(result, pipe_response) if @state.respond_to? :result
+    if @state.respond_to? :next_state
+      @state = @state.next_state pipe_response
+      walk current_result, pipe_response
     else
-      new_state = @state.next
+      current_result
     end
-    return Keith.new(new_state, @pipe).walk
   end
 
 end
