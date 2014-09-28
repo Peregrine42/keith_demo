@@ -18,34 +18,23 @@ describe Keith, '#walk' do
     state2 = double(:step2, message: "step 2", result: "bar")
     state1 = double(:step1, message: "step 1", next_state: state2)
     keith.state = state1
-    expect(keith.walk).to eq "bar"
+    expect(keith.walk).to eq ["bar"]
   end
 
   it 'returns the result of visiting the last given step' do
     state = double(:step, message: "step 1", result: "foo")
     keith.state = state
-    expect(keith.walk).to eq "foo"
+    expect(keith.walk).to eq ["foo"]
   end
 
-  context "when there has been no result up until now" do
-    it "passes :no_result to the current state" do
-      state = double(:step, message: "step 1")
-      allow(pipe).to   receive(:puts).and_return("pipe response")
+  context "the current state has a result" do
+    it 'calls the result with the reponse from the pipe' do
+      state1 = double(:state1)
+      state2 = double(:state2, message: "a message to get a reponse")
 
-      expect(state).to receive(:result).with(:no_result, "pipe response")
-
-      keith.state = state
-      keith.walk
-    end
-  end
-
-  context "when there has been a result from a previous state" do
-    it "passes that result to the current state" do
-      state2 = double(:step2, message: "step 2", result: "bar")
-      state1 = double(:step1, message: "step 1", next_state: state2)
-      allow(state1).to receive(:result).and_return("step 1 result")
-
-      expect(state2).to receive(:result).with("step 1 result", "some pipe response")
+      allow(pipe).to receive(:puts).and_return "a pipe response"
+      allow(state1).to receive(:next_state).and_return(state2)
+      expect(state2).to receive(:result).with("a pipe response")
 
       keith.state = state1
       keith.walk
