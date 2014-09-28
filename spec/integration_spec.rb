@@ -9,9 +9,15 @@ describe do
   let(:ios_check)        { State.new(message: "term len 0",   decision: Proc.new { |response| !response.match(/Not good/) }) }
   let(:catos_first_step) { State.new }
   let(:ios_first_step)   { State.new }
-  let(:catos_power)      { State.new(message: "show power consumption", result:  Proc.new { |response| response.match(/Power Consumption: (\d+)/).to_a[1] })  }
-  let(:ios_power)        { State.new(message: "power consumption", result:  Proc.new { |response| response.match(/Total Power Consumption: (\d+)/).to_a[1] }) }
+  let(:catos_power)      { State.new(message: "show power consumption", result:  Proc.new { |response| response.match(/Power Consumption: (\d+)/).to_a[1].to_i })  }
+  let(:ios_power)        { State.new(message: "power consumption", result:  Proc.new { |response| response.match(/Total Power Consumption: (\d+)/).to_a[1].to_i }) }
   let(:detection_failed) { State.new(result: Proc.new { |response| raise Exception, "can't detect switch type" }) }
+
+  let(:ssh)              { double(:ssh) }
+
+  let(:connection) { Connection.new(ssh, 'prompt>') }
+  let(:pipe)       { Pipe.new(connection) }
+  let(:keith)      { Keith.new(pipe, :puts_and_wait_for_prompt) }
 
   before do
     catos_check.next_step   = ios_check
@@ -22,56 +28,49 @@ describe do
 
     catos_first_step.next_step = catos_power
     ios_first_step.next_step   = ios_power
+
+    keith.state = catos_check
+  end
+
+  def call message
+    expect(ssh).to receive(:puts   ).with(message).ordered
+  end
+
+  def respond message
+    expect(ssh).to receive(:waitfor).with(/prompt>/).and_return(message).ordered
   end
 
   it "can detect an ios switch" do
-    ssh = double(:ssh)
-    expect(ssh).to receive(:puts   ).with("set length 0").ordered
-    expect(ssh).to receive(:waitfor).with(/prompt>/).and_return("That command was Invalid").ordered
 
-    expect(ssh).to receive(:puts   ).with("term len 0").ordered
-    expect(ssh).to receive(:waitfor).with(/prompt>/).and_return("").ordered
+       call "set length 0"
+    respond "That command was Invalid"
 
-    expect(ssh).to receive(:puts   ).with("power consumption").ordered
-    expect(ssh).to receive(:waitfor).with(/prompt>/).and_return("Total Power Consumption: 600W\nBreakdown: blah blah").ordered
+       call "term len 0"
+    respond ""
 
-    connection = Connection.new(ssh, 'prompt>')
-    pipe = Pipe.new(connection)
+       call "power consumption"
+    respond "Total Power Consumption: 600W\nBreakdown: blah blah"
 
-    keith = Keith.new(pipe, :puts_and_wait_for_prompt)
-    keith.state = catos_check
-    keith.walk
+    expect(keith.walk).to eq [600]
   end
 
   it "can detect a catos switch" do
-    ssh = double(:ssh)
-    expect(ssh).to receive(:puts   ).with("set length 0").ordered
-    expect(ssh).to receive(:waitfor).with(/prompt>/).and_return("").ordered
+       call "set length 0"
+    respond ""
 
-    expect(ssh).to receive(:puts   ).with("show power consumption").ordered
-    expect(ssh).to receive(:waitfor).with(/prompt>/).and_return("Power Consumption: 600W\nBreakdown: blah blah").ordered
+       call "show power consumption"
+    respond "Power Consumption: 500W\nBreakdown: blah blah"
 
-    connection = Connection.new(ssh, 'prompt>')
-    pipe = Pipe.new(connection)
-
-    keith = Keith.new(pipe, :puts_and_wait_for_prompt)
-    keith.state = catos_check
-    keith.walk
+    expect(keith.walk).to eq [500]
   end
 
   it "breaks if nothing works" do
-    ssh = double(:ssh)
-    expect(ssh).to receive(:puts   ).with("set length 0").ordered
-    expect(ssh).to receive(:waitfor).with(/prompt>/).and_return("That command was Invalid").ordered
+       call "set length 0"
+    respond "That command was Invalid"
 
-    expect(ssh).to receive(:puts   ).with("term len 0").ordered
-    expect(ssh).to receive(:waitfor).with(/prompt>/).and_return("That command was Not good").ordered
+       call "term len 0"
+    respond "That command was Not good"
 
-    connection = Connection.new(ssh, 'prompt>')
-    pipe = Pipe.new(connection)
-
-    keith = Keith.new(pipe, :puts_and_wait_for_prompt)
-    keith.state = catos_check
     expect { keith.walk }.to raise_error Exception, "can't detect switch type"
   end
 end
