@@ -7,7 +7,7 @@ describe do
 
   it "can detect the operating system of a switch" do
     catos_check = State.new(message: "set length 0",
-                            decision: Proc.new { |response| puts "yup!"; !response.match(/Invalid/) })
+                            decision: Proc.new { |response| !response.match(/Invalid/) })
     ios_check   = State.new(message: "term len 0",
                             decision: Proc.new { |response| !response.match(/Not good/) })
 

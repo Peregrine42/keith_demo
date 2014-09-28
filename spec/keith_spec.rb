@@ -15,7 +15,7 @@ describe Keith, '#walk' do
   end
 
   it 'moves to the next step until a step with no next step is reached' do
-    state2 = double(:step2, message: "step 2", result: "bar")
+    state2 = double(:step2, message: "step 2", result: "bar", next_step: nil)
     state1 = double(:step1, message: "step 1", next_step: state2)
     keith.state = state1
     expect(keith.walk).to eq ["bar"]
