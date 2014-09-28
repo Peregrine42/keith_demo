@@ -5,6 +5,7 @@ require_relative '../connection'
 
 describe do
 
+  let(:prompt_set)       { State.new(command: :puts, message: "set prompt prompt>") }
   let(:catos_check)      { State.new(message: "set length 0", decision: Proc.new { |response| !response.match(/Invalid/)  }) }
   let(:ios_check)        { State.new(message: "term len 0",   decision: Proc.new { |response| !response.match(/Not good/) }) }
   let(:catos_first_step) { State.new }
@@ -20,6 +21,8 @@ describe do
   let(:keith)      { Keith.new(pipe, :puts_and_wait_for_prompt) }
 
   before do
+    prompt_set.next_step    = catos_check
+
     catos_check.next_step   = ios_check
     catos_check.branch_step = catos_first_step
 
@@ -29,7 +32,7 @@ describe do
     catos_first_step.next_step = catos_power
     ios_first_step.next_step   = ios_power
 
-    keith.state = catos_check
+    keith.state = prompt_set
   end
 
   def call message
@@ -40,7 +43,8 @@ describe do
     expect(ssh).to receive(:waitfor).with(/prompt>/).and_return(message).ordered
   end
 
-  it "can detect an ios switch" do
+  it "can detect an ios switch with a strange prompt" do
+       call "set prompt prompt>"
 
        call "set length 0"
     respond "That command was Invalid"
@@ -55,6 +59,8 @@ describe do
   end
 
   it "can detect a catos switch" do
+       call "set prompt prompt>"
+
        call "set length 0"
     respond ""
 
@@ -65,6 +71,8 @@ describe do
   end
 
   it "breaks if nothing works" do
+       call "set prompt prompt>"
+
        call "set length 0"
     respond "That command was Invalid"
 
