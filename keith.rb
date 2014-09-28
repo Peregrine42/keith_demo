@@ -14,8 +14,8 @@ class Keith
     pipe_response = @pipe.send command, @state.message if @state.respond_to? :message
 
     result << @state.result(pipe_response) if @state.respond_to? :result
-    if @state.respond_to? :next_state
-      @state = @state.next_state pipe_response
+    if @state.respond_to? :next_step
+      @state = @state.next_step pipe_response
       walk result, pipe_response
     else
       result

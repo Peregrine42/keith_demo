@@ -7,10 +7,10 @@ class Pipe
     @timeout = timeout
   end
 
-  def puts message
+  def method_missing name, message
     begin
       Timeout::timeout(@timeout) do
-        @connection.puts message
+        @connection.send name, message
       end
     rescue Timeout::Error
       raise Pipe::TimeoutError, message

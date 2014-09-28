@@ -16,7 +16,7 @@ describe Keith, '#walk' do
 
   it 'moves to the next step until a step with no next step is reached' do
     state2 = double(:step2, message: "step 2", result: "bar")
-    state1 = double(:step1, message: "step 1", next_state: state2)
+    state1 = double(:step1, message: "step 1", next_step: state2)
     keith.state = state1
     expect(keith.walk).to eq ["bar"]
   end
@@ -33,7 +33,7 @@ describe Keith, '#walk' do
       state2 = double(:state2, message: "a message to get a reponse")
 
       allow(pipe).to receive(:puts).and_return "a pipe response"
-      allow(state1).to receive(:next_state).and_return(state2)
+      allow(state1).to receive(:next_step).and_return(state2)
       expect(state2).to receive(:result).with("a pipe response")
 
       keith.state = state1
@@ -42,11 +42,11 @@ describe Keith, '#walk' do
   end
 
   context "when the current state has no message for the pipe" do
-    it "calls next_state on the current state with :no_response" do
+    it "calls next_step on the current state with :no_response" do
       state1 = double(:state1, result: "foo")
       state2 = double(:state2, result: "foo")
 
-      expect(state1).to receive(:next_state).with(:no_response).and_return(state2)
+      expect(state1).to receive(:next_step).with(:no_response).and_return(state2)
 
       keith.state = state1
       keith.walk
@@ -54,12 +54,12 @@ describe Keith, '#walk' do
   end
 
   context "when the pipe has a response" do
-    it "calls next_state on the current state with the pipe's last response" do
+    it "calls next_step on the current state with the pipe's last response" do
       state1 = double(:state1, message: "step 1", result: "foo")
       state2 = double(:state2, message: "step 2", result: "bar")
       allow(pipe).to receive(:puts).and_return("pipe response")
 
-      expect(state1).to receive(:next_state).with("pipe response").and_return(state2)
+      expect(state1).to receive(:next_step).with("pipe response").and_return(state2)
 
       keith.state = state1
       keith.walk

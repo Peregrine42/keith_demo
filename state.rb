@@ -1,4 +1,4 @@
-class DecisionState
+class State
 
   def initialize **args
     @state = args
@@ -18,21 +18,21 @@ class DecisionState
     @state[:decision] = arg
   end
 
-  def next_state= arg
-    @state[:next_state] = arg
+  def next_step= arg
+    @state[:next_step] = arg
   end
 
-  def branch_state= arg
-    @state[:branch_state] = arg
+  def branch_step= arg
+    @state[:branch_step] = arg
   end
 
   def possible_attributes
-    [:next_state, :branch_state, :decision, :command, :message]
+    [:next_step, :branch_step, :decision, :command, :message]
   end
 
-  def next_state *args
-    return branch_state if respond_to?(:decision) && decision.call(*args)
-    @state[:next_state]
+  def next_step *args
+    return branch_step if respond_to?(:decision) && decision.call(*args)
+    @state[:next_step]
   end
 
   def result *args
