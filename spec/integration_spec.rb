@@ -5,34 +5,31 @@ require_relative '../connection'
 
 describe do
 
-  let(:prompt_set)       { State.new(command: :puts, message: "set prompt prompt>") }
-  let(:catos_check)      { State.new(message: "set length 0", decision: Proc.new { |response| !response.match(/Invalid/)  }) }
-  let(:ios_check)        { State.new(message: "term len 0",   decision: Proc.new { |response| !response.match(/Not good/) }) }
-  let(:catos_first_step) { State.new }
-  let(:ios_first_step)   { State.new }
-  let(:catos_power)      { State.new(message: "show power consumption", result:  Proc.new { |response| response.match(/Power Consumption: (\d+)/).to_a[1].to_i })  }
-  let(:ios_power)        { State.new(message: "power consumption", result:  Proc.new { |response| response.match(/Total Power Consumption: (\d+)/).to_a[1].to_i }) }
-  let(:detection_failed) { State.new(result: Proc.new { |response| raise Exception, "can't detect switch type" }) }
+  let(:set_catos_prompt)           { SendCommand.new(args: 'set prompt device_name>') }
+  let(:set_ios_prompt)             { SendCommand.new(args: 'prompt=device_name>') }
 
-  let(:ssh)              { double(:ssh) }
+  let(:try_setting_catos_terminal) { TryCommand.new(args: 'set terminal 0',   error_matcher: /Invalid/,           success_step: nil, error_step: nil) }
+  let(:try_setting_ios_terminal)   { TryCommand.new(args: 'term len 0',       error_matcher: /Not valid command/, success_step: nil, error_step: nil) }
 
-  let(:connection) { Connection.new(ssh, 'prompt>') }
-  let(:pipe)       { Pipe.new(connection) }
-  let(:keith)      { Keith.new(pipe, :puts_and_wait_for_prompt) }
+  let(:get_catos_power)            { GetInfo.new(args: 'show total power', extract: /Total Power Consumption: (\d+)/)     }
+  let(:get_ios_power)              { GetInfo.new(args: 'display power',    extract: /Interface Power Consumption: (\d+)/) }
+
+  let(:get_catos_ports)            { GetCatosPorts.new }
+  let(:get_ios_ports)              { GetIosPorts.new   }
 
   before do
-    prompt_set.next_step    = catos_check
+    first_catos_process = keith.make_sequence(get_catos_power, get_catos_ports)
+    first_ios_process   = keith.make_sequence(get_ios_power, get_ios_ports)
 
-    catos_check.next_step   = ios_check
-    catos_check.branch_step = catos_first_step
+    keith.add        login
 
-    ios_check.next_step     = detection_failed
-    ios_check.branch_step   = ios_first_step
+    keith.add        set_catos_prompt
+    keith.add        set_ios_prompt
+    keith.add_branch try_setting_catos_terminal, on_success_use: catos_process_head
+    keith.add_branch try_setting_ios_terminal,   on_success_use: ios_process_head
 
-    catos_first_step.next_step = catos_power
-    ios_first_step.next_step   = ios_power
-
-    keith.state = prompt_set
+    keith.link       first_catos_process.chain_end, to: logoff
+    keith.link       first_ios_process.chain_end,   to: logoff
   end
 
   def call message
